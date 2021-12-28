@@ -85,7 +85,7 @@ public class FieldEditor extends EditContext {
     public void setType(Type type, TypeResolver resolver) throws GeneratorException {
         editLock();
 
-        resolver.resolve(getManager(), fieldDecl, FieldDeclaration.TYPE_PROPERTY, modifiers, type, false);
+        resolver.resolve(getManager(), fieldDecl, FieldDeclaration.TYPE_PROPERTY, modifiers, type, false, false);
     }
 
     public void setInitializer(Type type, long constant) throws NotEditableException {

@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.stream.Collectors;
 
 public class ObjCClassManager extends AbstractUnitManager {
 
@@ -247,6 +248,10 @@ public class ObjCClassManager extends AbstractUnitManager {
             throw new RuntimeException("Value 'superName' should be null or a string with a length greater then 0!");
         }
 
+        if (name_fq.contains("NSObject")) {
+            System.out.println();
+        }
+
         // Set value
         this.superName = superName;
         this.originalName = originalName;
@@ -313,6 +318,8 @@ public class ObjCClassManager extends AbstractUnitManager {
         }
         for (ObjCMethod method : allMethods) {
             fixNameCollisionForMethod(method);
+
+            fixGenericClash(method);
         }
     }
 
@@ -320,6 +327,9 @@ public class ObjCClassManager extends AbstractUnitManager {
     public void preparationPhase_Final() {
         sortAllMethods();
         for (ObjCMethod method : allMethods) {
+            if ("NSCopying".equals(getUnitName())){
+                System.out.println();
+            }
             if (method.getOwner() != this || method.isDisabled()) {
                 continue;
             }
@@ -708,6 +718,10 @@ public class ObjCClassManager extends AbstractUnitManager {
         ClassMemberEditor cme = updateClass();
         for (ObjCMethod method : allMethods) {
 
+            if ("NSDictionary".equals(getUnitName()) && "countByEnumeratingWithState:objects:count:".equals(method.getSelector())) {
+                System.out.println();
+            }
+
             update(method, cme);
             if (method.isStatic() && method.isProtocolMethod()) {
                 updateProtocolClassMethod(method, cme);
@@ -751,6 +765,25 @@ public class ObjCClassManager extends AbstractUnitManager {
                 } else {
                     method.addStaticSuffix();
                 }
+            }
+        }
+    }
+
+    protected final void fixGenericClash(ObjCMethod method) {
+        if (superManager != null) {
+            superManager.fixGenericClash(method);
+        }
+
+        protocols.forEach(it -> it.fixGenericClash(method));
+
+        for (ObjCMethod clash_method : allMethods) {
+            if (clash_method == method) {
+                continue;
+            }
+
+            if (clash_method.getJavaName().equals(method.getJavaName()) && clash_method.getSelector().equals(method.getSelector())
+                    && clash_method.isStatic() == method.isStatic()) {
+                method.setInheritedFromNonTemplateClass(method.isInheritedFromNonTemplateClass() || this.genericParamTypes.isEmpty());
             }
         }
     }
@@ -864,6 +897,11 @@ public class ObjCClassManager extends AbstractUnitManager {
             if (editor.isEditable()) {
                 editor.setClass();
                 editor.setClassName(getUnitName());
+
+                if (getUnitName().equals("AppsFlyerDeepLink")) {
+                    System.out.println();
+                }
+
                 if (superName != null) {
                     editor.setSuperClass(addImport(superManager), superTypeGenericParams);
                 } else {
@@ -936,6 +974,11 @@ public class ObjCClassManager extends AbstractUnitManager {
      * @throws GeneratorException
      */
     private void update(ObjCMethod method, ClassMemberEditor cme) {
+
+        if ("NSArray".equals(getUnitName()) && "new".equals(method.getSelector())){
+            System.out.println("test");
+        }
+
         if (method.isDisabled()) {
             return;
         }
@@ -975,12 +1018,15 @@ public class ObjCClassManager extends AbstractUnitManager {
                 canUpdateUnsafe = true;
 
                 editor.setName(methodName);
+                boolean allowGenericParameters = !method.isInheritedFromNonTemplateClass() && !method.isProtocolMethod();
                 if (isCreatorMethod(method)) {
-                    editor.setType(new Type(getUnitName()), methCreatorRetTResolver);
+                    // Avoid method clash
+                    // If generic parameter is added to methods such as `NSArray.alloc()`, it will clash with method such as `NSObject.alloc()`.
+                    editor.setType(toInstanceType(allowGenericParameters), methCreatorRetTResolver, allowGenericParameters);
                 } else {
-                    editor.setType(method.getType(), methTResolver);
+                    editor.setType(method.getType(), methTResolver, allowGenericParameters);
                 }
-                if (method.isStatic() && !method.isAlloc() && !method.isInheritedFromNonTemplateClass()) {
+                if (method.isStatic() && allowGenericParameters) {
                     editor.setTemplates(genericParamTypes);
                 } else {
                     editor.setTemplates(Collections.emptyList());
@@ -988,7 +1034,7 @@ public class ObjCClassManager extends AbstractUnitManager {
                 editor.setArgumentCount(numArgs);
                 int idx = 0;
                 for (CalleeArgument arg : method.getArguments()) {
-                    editor.setArgument(idx, arg.getName(), arg.getType(), methTResolver);
+                    editor.setArgument(idx, arg.getName(), arg.getType(), methTResolver, allowGenericParameters);
                     ++idx;
                 }
                 if (method.isVariadic()) {
@@ -1143,7 +1189,7 @@ public class ObjCClassManager extends AbstractUnitManager {
 
             final String methodName = method.getJavaName();
 
-            MethodEditor editor = cme.getObjCMethodBinder(method.getSelector(), method.isStatic());
+            final MethodEditor editor;
             if (cme.hasMethod(methodName, method.isStatic(), method.getArguments().size())) {
                 editor = cme.getMehtod(methodName, method.isStatic(), method.getArguments().size());
             } else {
@@ -1153,7 +1199,7 @@ public class ObjCClassManager extends AbstractUnitManager {
             if (editor != null && editor.isEditable()) {
                 editor.setName(methodName);
                 if (isCreatorMethod(method)) {
-                    editor.setType(new Type(getUnitName()), methCreatorRetTResolver);
+                    throw new IllegalArgumentException("Creator method should not be unsafe");
                 } else {
                     editor.setType(method.getType(), methTResolver);
                 }
@@ -1358,7 +1404,12 @@ public class ObjCClassManager extends AbstractUnitManager {
         superTypeGenericParams = new ArrayList<Type>(objCTypeArgs);
     }
 
-    public Type toInstanceType() {
-        return new Type(getUnitName());
+    public Type toInstanceType(boolean allowGenericParams) {
+        Type t = new Type(getUnitName());
+        if (allowGenericParams && !genericParamTypes.isEmpty()) {
+            t.setObjCTypeArgs(genericParamTypes.stream().map(ObjCGenericParamType::getType).collect(Collectors.toList()));
+        }
+
+        return t;
     }
 }

@@ -99,7 +99,9 @@ class ModelBuilder extends AbstractModelEditor {
                     params.clear();
                     break;
                 }
-                ObjCGenericParamType param = new ObjCGenericParamType(index, manager, type, variance);
+                Type dummyType = new Type(type, memModel);
+                ObjCGenericParamType param = new ObjCGenericParamType(index, manager, dummyType, type, variance);
+                dummyType.setObjCGenericParamType(param);
                 params.add(param);
             }
             for (ObjCGenericParamType param : params) {
@@ -261,6 +263,11 @@ class ModelBuilder extends AbstractModelEditor {
         final CXCursor declCursor = decl.cursor();
         final boolean isStatic = declCursor.kind() == CXCursorKind.ObjCClassMethodDecl;
         final String selector = decl.entityInfo().cursor().toString();
+
+        if ("NSArray".equals(manager.getUnitName()) && "init".equals(selector)){
+            System.out.println("test");
+        }
+
         final int count = declCursor.getNumArguments();
         Type returnType = new Type(declCursor.getCursorResultType(), memModel);
         ObjCMethod method = new ObjCMethod(selector, isStatic, returnType, count, ObjCMethodKind.METHOD,

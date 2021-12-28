@@ -70,6 +70,7 @@ public class TypeResolver extends AbstractASTBase {
     private ModifierEditor modifiers;
     private Type type;
     private boolean isInstanceType;
+    private boolean resolveTypeParam;
     private boolean isArg;
     private boolean isSupportCheck;
 
@@ -156,6 +157,7 @@ public class TypeResolver extends AbstractASTBase {
             this.modifiers = null;
             this.type = type;
             this.isInstanceType = false;
+            this.resolveTypeParam = false;
             this.isArg = isArg;
             this.isSupportCheck = true;
             _R();
@@ -168,6 +170,7 @@ public class TypeResolver extends AbstractASTBase {
             this.modifiers = null;
             this.type = null;
             this.isInstanceType = false;
+            this.resolveTypeParam = false;
             this.isArg = false;
             this.isSupportCheck = false;
         }
@@ -175,7 +178,7 @@ public class TypeResolver extends AbstractASTBase {
     }
 
     public synchronized void resolve(AbstractUnitManager manager, ASTNode node, ChildPropertyDescriptor property,
-            ModifierEditor modifiers, Type type, boolean isArg) throws GeneratorException {
+            ModifierEditor modifiers, Type type, boolean isArg, boolean resolveTypeParam) throws GeneratorException {
         try {
             this.manager = manager;
             this.node = node;
@@ -183,6 +186,7 @@ public class TypeResolver extends AbstractASTBase {
             this.modifiers = modifiers;
             this.type = type;
             this.isInstanceType = false;
+            this.resolveTypeParam = resolveTypeParam;
             this.isArg = isArg;
             this.isSupportCheck = false;
             _R();
@@ -193,6 +197,7 @@ public class TypeResolver extends AbstractASTBase {
             this.modifiers = null;
             this.type = null;
             this.isInstanceType = false;
+            this.resolveTypeParam = false;
             this.isArg = false;
             this.isSupportCheck = false;
         }
@@ -559,7 +564,7 @@ public class TypeResolver extends AbstractASTBase {
 
     private Type getInstanceType() {
         if (manager instanceof ObjCClassManager) {
-            return ((ObjCClassManager)manager).toInstanceType();
+            return ((ObjCClassManager)manager).toInstanceType(resolveTypeParam);
         } else {
             return new Type(manager.getUnitName());
         }
@@ -589,7 +594,7 @@ public class TypeResolver extends AbstractASTBase {
                 _R();
                 return;
             }
-            if (_supports(OBJC_GENERICS, depth) && type.getObjCGenericParamType() != null) {
+            if (_supports(OBJC_GENERICS, depth) && resolveTypeParam && type.getObjCGenericParamType() != null) {
                 _Apply(newUnimportedSimpleType(type.getObjCGenericParamType().getName()));
             } else if (type.getObjcProtocolGenerationState() != null && type.getObjcProtocolGenerationState()
                     .isEnabled() && type.getObjCProtocols().size() == 1) {
@@ -611,7 +616,7 @@ public class TypeResolver extends AbstractASTBase {
             final Type rootType = type.getPonierRootType();
 
             final String name;
-            if (_supports(OBJC_GENERICS, depth) && rootType.getObjCGenericParamType() != null) {
+            if (_supports(OBJC_GENERICS, depth) && resolveTypeParam && rootType.getObjCGenericParamType() != null) {
                 name = rootType.getObjCGenericParamType().getName();
             } else if (rootType.getObjcProtocolGenerationState() != null && rootType.getObjcProtocolGenerationState()
                     .isEnabled() && rootType.getObjCProtocols().size() == 1) {
@@ -666,8 +671,7 @@ public class TypeResolver extends AbstractASTBase {
             }
 
             SimpleType simpleType = newSimpleType(clazz);
-            if (isInstanceType && clazz instanceof ObjCProtocolManager) {
-                // Don't try generic for protocol type
+            if (isInstanceType) {
                 _Apply(simpleType);
             } else {
                 try {
@@ -692,8 +696,7 @@ public class TypeResolver extends AbstractASTBase {
                 modifiers.setReferenceInfo(manager.addImport(clazz), depth);
             }
             SimpleType simpleType = newSimpleType(clazz);
-            if (isInstanceType && clazz instanceof ObjCProtocolManager) {
-                // Don't try generic for protocol type
+            if (isInstanceType) {
                 _Apply(_CreateNestedPtr(type, depth, simpleType));
             } else {
                 try {
@@ -834,12 +837,12 @@ public class TypeResolver extends AbstractASTBase {
 
     private org.eclipse.jdt.core.dom.Type _CreateObjCGenericType(Type baseType, SimpleType simpleBaseType)
             throws GeneratorException {
-        return _CreateObjCGenericType(this, manager, baseType, simpleBaseType);
+        return _CreateObjCGenericType(this, manager, baseType, simpleBaseType, resolveTypeParam);
     }
 
     @SuppressWarnings("unchecked")
     private static org.eclipse.jdt.core.dom.Type _CreateObjCGenericType(TypeResolver resolver,
-            AbstractUnitManager manager, Type baseType, SimpleType simpleBaseType) throws GeneratorException {
+            AbstractUnitManager manager, Type baseType, SimpleType simpleBaseType, boolean resolveTypeParam) throws GeneratorException {
         // Check for errors
         if (resolver == null || manager == null || baseType == null) {
             throw new NullPointerException();
@@ -883,7 +886,7 @@ public class TypeResolver extends AbstractASTBase {
             try {
                 final Type argType = baseType.getObjCTypeArgs().get(i);
                 final ObjCGenericParamType paramType = clazz.genericParamTypes.get(i);
-                org.eclipse.jdt.core.dom.Type type = CreateObjCGenericTypeArgument(resolver, manager, argType);
+                org.eclipse.jdt.core.dom.Type type = CreateObjCGenericTypeArgument(resolver, manager, argType, resolveTypeParam);
                 if (!(type instanceof WildcardType) && (argType.getKind() != Type.ObjCId
                         || argType.getObjCGenericParamType() == null)) {
                     if (paramType.isInvariant()) {
@@ -914,7 +917,7 @@ public class TypeResolver extends AbstractASTBase {
     }
 
     public static org.eclipse.jdt.core.dom.Type CreateObjCGenericTypeArgument(TypeResolver resolver,
-            AbstractUnitManager manager, Type baseType) throws GeneratorException {
+            AbstractUnitManager manager, Type baseType, boolean resolveTypeParam) throws GeneratorException {
         // Check for errors
         if (resolver == null || manager == null || baseType == null) {
             throw new NullPointerException();
@@ -922,7 +925,7 @@ public class TypeResolver extends AbstractASTBase {
 
         // Handle id/template types
         if (baseType.getKind() == Type.ObjCId) {
-            if (resolver._supports(OBJC_GENERICS, 0) && baseType.getObjCGenericParamType() != null) {
+            if (resolver._supports(OBJC_GENERICS, 0) && resolveTypeParam && baseType.getObjCGenericParamType() != null) {
                 return manager.getAST()
                         .newSimpleType(manager.getAST().newName(baseType.getObjCGenericParamType().getName()));
             } else {
@@ -950,7 +953,7 @@ public class TypeResolver extends AbstractASTBase {
         final ObjCClassManager clazz = manager.getGenerator().getClass(baseType.getElementName());
         if (clazz == null) {
             // Default to 'id' if Objective-C class is not found
-            if (resolver._supports(OBJC_GENERICS, 0) && baseType.getObjCGenericParamType() != null) {
+            if (resolver._supports(OBJC_GENERICS, 0) && resolveTypeParam && baseType.getObjCGenericParamType() != null) {
                 return manager.getAST()
                         .newSimpleType(manager.getAST().newName(baseType.getObjCGenericParamType().getName()));
             } else {
@@ -970,6 +973,6 @@ public class TypeResolver extends AbstractASTBase {
         }
 
         // Handle generic type
-        return _CreateObjCGenericType(resolver, manager, baseType, simpleType);
+        return _CreateObjCGenericType(resolver, manager, baseType, simpleType, resolveTypeParam);
     }
 }

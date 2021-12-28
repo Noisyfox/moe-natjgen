@@ -638,6 +638,10 @@ public class ObjCMethod extends AbstractModelElement implements IParameterizedCa
         return getArguments().get(argIdx).getType();
     }
 
+    public void setInheritedFromNonTemplateClass(boolean inheritedFromNonTemplateClass) {
+        isInheritedFromNonTemplateClass = inheritedFromNonTemplateClass;
+    }
+
     public boolean isInheritedFromNonTemplateClass() {
         return isInheritedFromNonTemplateClass;
     }

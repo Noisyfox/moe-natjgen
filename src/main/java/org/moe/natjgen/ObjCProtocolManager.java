@@ -17,6 +17,7 @@ limitations under the License.
 package org.moe.natjgen;
 
 import org.moe.natjgen.MethodEditor.UncertainElem;
+import org.moe.natjgen.Type.ObjCProtocolGenerationState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -258,4 +259,11 @@ public class ObjCProtocolManager extends ObjCClassManager {
         }
     }
 
+    @Override
+    public Type toInstanceType(boolean allowGenericParams) {
+        Type t = new Type(getUnitName(), false, true);
+        t.setObjcProtocolGenerationState(new ObjCProtocolGenerationState());
+
+        return t;
+    }
 }

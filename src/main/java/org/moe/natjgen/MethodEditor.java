@@ -111,8 +111,13 @@ public class MethodEditor extends EditContext {
         }
     }
 
-    @SuppressWarnings("unchecked")
+
     public void setArgument(int idx, String arg_name, Type type, TypeResolver resolver) throws GeneratorException {
+        setArgument(idx, arg_name, type, resolver, false);
+    }
+
+    @SuppressWarnings("unchecked")
+    public void setArgument(int idx, String arg_name, Type type, TypeResolver resolver, boolean resolveTypeParam) throws GeneratorException {
         editLock();
 
         ListRewrite mlrw = getRewrite().getListRewrite(methodDecl, MethodDeclaration.PARAMETERS_PROPERTY);
@@ -126,7 +131,7 @@ public class MethodEditor extends EditContext {
 
         ModifierEditor argmod = new ModifierEditor(getManager(), svd, SingleVariableDeclaration.MODIFIERS2_PROPERTY,
                 true);
-        resolver.resolve(getManager(), svd, SingleVariableDeclaration.TYPE_PROPERTY, argmod, type, true);
+        resolver.resolve(getManager(), svd, SingleVariableDeclaration.TYPE_PROPERTY, argmod, type, true, resolveTypeParam);
         argmod.close();
 
         // Add uncertain descriptor
@@ -155,9 +160,13 @@ public class MethodEditor extends EditContext {
     }
 
     public void setType(Type type, TypeResolver resolver) throws GeneratorException {
+        setType(type, resolver, false);
+    }
+
+    public void setType(Type type, TypeResolver resolver, boolean resolveTypeParam) throws GeneratorException {
         editLock();
 
-        resolver.resolve(getManager(), methodDecl, MethodDeclaration.RETURN_TYPE2_PROPERTY, modifiers, type, false);
+        resolver.resolve(getManager(), methodDecl, MethodDeclaration.RETURN_TYPE2_PROPERTY, modifiers, type, false, resolveTypeParam);
 
         // Add uncertain descriptor
         UncertainDescriptor udesc = modifiers.getUncertainDescriptor();

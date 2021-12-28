@@ -146,7 +146,7 @@ public class ClassEditor extends EditContext {
             ParameterizedType parameterizedType = getAST().newParameterizedType(simpleType);
             for (org.moe.natjgen.Type type : paramTypes) {
                 Type typeArgument = TypeResolver
-                        .CreateObjCGenericTypeArgument(ObjCClassManager.methTResolver, manager, type);
+                        .CreateObjCGenericTypeArgument(ObjCClassManager.methTResolver, manager, type, true);
                 parameterizedType.typeArguments().add(typeArgument);
             }
             getRewrite().set(classDecl, TypeDeclaration.SUPERCLASS_TYPE_PROPERTY, parameterizedType, getEditGroup());

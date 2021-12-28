@@ -31,11 +31,14 @@ public class ObjCGenericParamType {
 
     private final int variance;
 
-    public ObjCGenericParamType(int location, ObjCClassManager manager, CXType type, int variance) {
+    private final Type type;
+
+    public ObjCGenericParamType(int location, ObjCClassManager manager, Type type, CXType cxtype, int variance) {
         this.location = location;
         this.manager = manager;
-        this.name = "_" + type.getTypeSpelling().toString();
-        this.usr = type.getTypeDeclaration().getCursorUSR().toString();
+        this.type = type;
+        this.name = "_" + cxtype.getTypeSpelling().toString();
+        this.usr = cxtype.getTypeDeclaration().getCursorUSR().toString();
         this.variance = variance;
         if (location < 0) {
             throw new IllegalArgumentException();
@@ -86,5 +89,9 @@ public class ObjCGenericParamType {
 
     public boolean isContravariant() {
         return variance == CXObjCTypeParamVariance.Contravariant;
+    }
+
+    public Type getType() {
+        return type;
     }
 }

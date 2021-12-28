@@ -218,11 +218,11 @@ public class Type {
 
     private static final ArrayList<Type> EMPTY_TYPE_ARGS_LIST = new ArrayList<Type>();
 
-    private ArrayList<Type> typeArgs = EMPTY_TYPE_ARGS_LIST;
+    private List<Type> typeArgs = EMPTY_TYPE_ARGS_LIST;
 
     private static final ArrayList<String> EMPTY_PROTOOCOLS_LIST = new ArrayList<String>();
 
-    private ArrayList<String> objcProtocols = EMPTY_PROTOOCOLS_LIST;
+    private List<String> objcProtocols = EMPTY_PROTOOCOLS_LIST;
 
     private ObjCGenericParamType objCGenericParamType = null;
 
@@ -984,6 +984,23 @@ public class Type {
         this(className, false);
     }
 
+    public Type(String className, boolean fullyQualified, boolean isProtocol) {
+        if (isProtocol) {
+            if (fullyQualified) {
+                throw new IllegalArgumentException("Protocol type cannot be fullyQualified");
+            }
+            this.kind = ObjCId;
+            this.elementName = null;
+            this.objcProtocols = Collections.singletonList(className);
+        } else if (fullyQualified == false) {
+            this.kind = ObjCObject;
+            this.elementName = className;
+        } else {
+            this.kind = FullyQualified;
+            this.elementName = className;
+        }
+    }
+
     public Type(String className, boolean fullyQualified) {
         if (fullyQualified == false) {
             this.kind = ObjCObject;
@@ -1671,7 +1688,11 @@ public class Type {
         this.objCGenericParamType = objCGenericParamType;
     }
 
-    public ArrayList<Type> getObjCTypeArgs() {
+    public void setObjCTypeArgs(List<Type> typeArgs) {
+        this.typeArgs = typeArgs;
+    }
+
+    public List<Type> getObjCTypeArgs() {
         return typeArgs;
     }
 
@@ -1711,7 +1732,7 @@ public class Type {
         this.objcProtocolGenerationState = objcProtocolGenerationState;
     }
 
-    public ArrayList<String> getObjCProtocols() {
+    public List<String> getObjCProtocols() {
         return objcProtocols;
     }
 
